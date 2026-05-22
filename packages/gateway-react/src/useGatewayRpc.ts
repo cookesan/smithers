@@ -12,8 +12,11 @@ export function useGatewayRpc<Method extends GatewayRpcMethod>(
   const client = useSmithersGateway();
   const enabled = options.enabled ?? true;
   const paramsKey = useMemo(() => JSON.stringify(params ?? {}), [params]);
-  const deps = options.deps ?? [paramsKey];
+  const deps = useMemo(() => options.deps ?? [paramsKey], [options.deps, paramsKey]);
   const paramsRef = useRef(params);
+  const activeAbortRef = useRef<AbortController | undefined>(undefined);
+  const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
   const previousEffectRef = useRef<{
     client: typeof client;
     enabled: boolean;
@@ -25,20 +28,46 @@ export function useGatewayRpc<Method extends GatewayRpcMethod>(
   const [error, setError] = useState<Error>();
   const [loading, setLoading] = useState(enabled);
 
+  const cancelActiveRequest = useCallback(() => {
+    requestIdRef.current += 1;
+    activeAbortRef.current?.abort();
+    activeAbortRef.current = undefined;
+  }, []);
+
   const refetch = useCallback(async () => {
     if (!enabled) {
       return;
     }
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    activeAbortRef.current?.abort();
+    const abort = new AbortController();
+    activeAbortRef.current = abort;
     setLoading(true);
     setError(undefined);
     try {
-      setData(await client.rpc(method, paramsRef.current));
+      const result = await client.rpc(method, paramsRef.current, { signal: abort.signal });
+      if (mountedRef.current && requestIdRef.current === requestId && !abort.signal.aborted) {
+        setData(result);
+      }
     } catch (cause) {
-      setError(cause instanceof Error ? cause : new Error(String(cause)));
+      if (mountedRef.current && requestIdRef.current === requestId && !abort.signal.aborted) {
+        setError(cause instanceof Error ? cause : new Error(String(cause)));
+      }
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) {
+        activeAbortRef.current = undefined;
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
     }
   }, [client, enabled, method]);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+    cancelActiveRequest();
+  }, [cancelActiveRequest]);
 
   useEffect(() => {
     const previous = previousEffectRef.current;
@@ -50,9 +79,14 @@ export function useGatewayRpc<Method extends GatewayRpcMethod>(
       deps.some((dep, index) => !Object.is(dep, previous.deps[index]));
     previousEffectRef.current = { client, enabled, method, deps: [...deps] };
     if (changed) {
+      if (!enabled) {
+        cancelActiveRequest();
+        setLoading(false);
+        return;
+      }
       void refetch();
     }
-  });
+  }, [cancelActiveRequest, client, deps, enabled, method, refetch]);
 
   return { data, error, loading, refetch };
 }

@@ -2,6 +2,7 @@ import type { GatewayRpcMethod } from "@smithers-orchestrator/gateway/rpc";
 import { GatewayRpcError } from "./GatewayRpcError.ts";
 import type { GatewayEventFrame } from "./GatewayEventFrame.ts";
 import type { GatewayResponseFrame } from "./GatewayResponseFrame.ts";
+import { isGatewayEventFrame, isGatewayResponseFrame, isObject } from "./gatewayFrameValidation.ts";
 import type { GatewayRpcParams, GatewayRpcPayload } from "./GatewayRpcTypeMap.ts";
 
 type PendingRequest = {
@@ -34,10 +35,6 @@ function frameError(frame: Extract<GatewayResponseFrame, { ok: false }>, method:
   });
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function invalidFrameError(details?: unknown) {
   return new GatewayRpcError({
     method: "websocket",
@@ -45,29 +42,6 @@ function invalidFrameError(details?: unknown) {
     message: "Gateway returned an invalid WebSocket frame.",
     details,
   });
-}
-
-function isGatewayResponseFrame(value: unknown): value is GatewayResponseFrame {
-  if (!isObject(value)) {
-    return false;
-  }
-  if (value.type !== "res" || typeof value.id !== "string" || typeof value.ok !== "boolean") {
-    return false;
-  }
-  if (value.ok === true) {
-    return "payload" in value;
-  }
-  return isObject(value.error) &&
-    typeof value.error.code === "string" &&
-    typeof value.error.message === "string";
-}
-
-function isGatewayEventFrame(value: unknown): value is GatewayEventFrame {
-  return isObject(value) &&
-    value.type === "event" &&
-    typeof value.event === "string" &&
-    typeof value.seq === "number" &&
-    typeof value.stateVersion === "number";
 }
 
 export class SmithersGatewayConnection {
@@ -83,7 +57,9 @@ export class SmithersGatewayConnection {
       this.handleMessage(message.data);
     });
     ws.addEventListener("error", () => {
-      this.push({ kind: "error", error: new Error("Gateway WebSocket error") });
+      const error = new Error("Gateway WebSocket error");
+      this.rejectPending(error);
+      this.push({ kind: "error", error });
     });
     ws.addEventListener("close", () => {
       const alreadyClosed = this.closed;
@@ -175,7 +151,7 @@ export class SmithersGatewayConnection {
     try {
       frame = JSON.parse(text);
     } catch {
-      this.push({ kind: "error", error: invalidFrameError(text) });
+      this.failProtocol(invalidFrameError(text));
       return;
     }
     if (isGatewayResponseFrame(frame)) {
@@ -203,7 +179,7 @@ export class SmithersGatewayConnection {
       this.push({ kind: "event", frame });
       return;
     }
-    this.push({ kind: "error", error: invalidFrameError(frame) });
+    this.failProtocol(invalidFrameError(frame));
   }
 
   private push(event: QueuedEvent) {
@@ -231,5 +207,11 @@ export class SmithersGatewayConnection {
       pending.reject(error);
     }
     this.pending.clear();
+  }
+
+  private failProtocol(error: Error) {
+    this.rejectPending(error);
+    this.push({ kind: "error", error });
+    this.close();
   }
 }

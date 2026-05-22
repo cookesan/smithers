@@ -3,6 +3,7 @@ import { GatewayRpcError } from "./GatewayRpcError.ts";
 import type { GatewayEventFrame } from "./GatewayEventFrame.ts";
 import type { GatewayResponseFrame } from "./GatewayResponseFrame.ts";
 import type { GatewayUiBootConfig } from "./GatewayUiBootConfig.ts";
+import { isGatewayResponseFrame, isObject } from "./gatewayFrameValidation.ts";
 import { SmithersGatewayConnection } from "./SmithersGatewayConnection.ts";
 import type { SmithersGatewayClientOptions } from "./SmithersGatewayClientOptions.ts";
 import type { GatewayRpcParams, GatewayRpcPayload } from "./GatewayRpcTypeMap.ts";
@@ -71,25 +72,6 @@ function invalidGatewayResponse(method: string, status: number | undefined, deta
     message: "Gateway returned an invalid RPC response frame.",
     details,
   });
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isGatewayResponseFrame(value: unknown): value is GatewayResponseFrame {
-  if (!isObject(value)) {
-    return false;
-  }
-  if (value.type !== "res" || typeof value.id !== "string" || typeof value.ok !== "boolean") {
-    return false;
-  }
-  if (value.ok === true) {
-    return "payload" in value;
-  }
-  return isObject(value.error) &&
-    typeof value.error.code === "string" &&
-    typeof value.error.message === "string";
 }
 
 function rpcError(frame: Extract<GatewayResponseFrame, { ok: false }>, method: string, status?: number) {
@@ -164,6 +146,9 @@ export class SmithersGatewayClient {
     if (!frame.ok) {
       throw rpcError(frame, method, response.status);
     }
+    if (!response.ok) {
+      throw gatewayHttpError(method, response.status);
+    }
     return frame.payload;
   }
 
@@ -176,36 +161,75 @@ export class SmithersGatewayClient {
     }
     const ws = new this.WebSocketImpl(toWebSocketUrl(this.baseUrl, this.boot?.wsPath));
     await new Promise<void>((resolve, reject) => {
-      const onOpen = () => {
+      let settled = false;
+      const settle = (complete: () => void) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         cleanup();
-        resolve();
+        complete();
+      };
+      const onOpen = () => {
+        settle(resolve);
       };
       const onError = () => {
-        cleanup();
-        reject(new Error("Gateway WebSocket failed to open."));
+        settle(() => reject(new Error("Gateway WebSocket failed to open.")));
+      };
+      const onClose = () => {
+        settle(() => reject(new Error("Gateway WebSocket closed before open.")));
       };
       const onAbort = () => {
-        cleanup();
-        ws.close();
-        reject(new Error("Gateway WebSocket open aborted."));
+        settle(() => {
+          ws.close();
+          reject(new Error("Gateway WebSocket open aborted."));
+        });
       };
       const cleanup = () => {
         ws.removeEventListener("open", onOpen);
         ws.removeEventListener("error", onError);
+        ws.removeEventListener("close", onClose);
         options.signal?.removeEventListener("abort", onAbort);
       };
       ws.addEventListener("open", onOpen);
       ws.addEventListener("error", onError);
+      ws.addEventListener("close", onClose);
       options.signal?.addEventListener("abort", onAbort, { once: true });
     });
     const connection = new SmithersGatewayConnection(ws);
     try {
-      await connection.requestRaw("connect", {
+      const handshake = connection.requestRaw("connect", {
         minProtocol: 1,
         maxProtocol: 1,
         client: this.client,
         ...(this.token ? { auth: { token: this.token } } : {}),
         ...(options.subscribe ? { subscribe: options.subscribe } : {}),
+      });
+      await new Promise<void>((resolve, reject) => {
+        if (options.signal?.aborted) {
+          void handshake.catch(() => undefined);
+          connection.close();
+          reject(new Error("Gateway WebSocket handshake aborted."));
+          return;
+        }
+        let settled = false;
+        const settle = (complete: () => void) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          options.signal?.removeEventListener("abort", onAbort);
+          complete();
+        };
+        const onAbort = () => {
+          connection.close();
+          settle(() => reject(new Error("Gateway WebSocket handshake aborted.")));
+        };
+        options.signal?.addEventListener("abort", onAbort, { once: true });
+        handshake.then(
+          () => settle(resolve),
+          (error) => settle(() => reject(error instanceof Error ? error : new Error(String(error)))),
+        );
       });
     } catch (error) {
       connection.close();

@@ -178,6 +178,19 @@ describe("SmithersGatewayClient HTTP RPC", () => {
     });
   });
 
+  test("maps non-2xx success frames to HTTP_ERROR", async () => {
+    const client = new SmithersGatewayClient({
+      fetch: async () => okResponse({ runId: "run-1" }, 500),
+    });
+
+    await expect(client.getRun({ runId: "run-1" })).rejects.toMatchObject({
+      name: "GatewayRpcError",
+      method: "getRun",
+      code: "HTTP_ERROR",
+      status: 500,
+    });
+  });
+
   test("covers all stable convenience RPC methods added around the gateway contract", async () => {
     const methods: string[] = [];
     const client = new SmithersGatewayClient({
@@ -262,6 +275,21 @@ describe("SmithersGatewayConnection WebSocket RPC", () => {
     connection.close();
   });
 
+  test("rejects pending requests when malformed frames arrive without an event consumer", async () => {
+    const ws = new FakeWebSocket("ws://gateway.local");
+    const connection = new SmithersGatewayConnection(ws as unknown as WebSocket);
+
+    const pending = connection.requestRaw("connect", { minProtocol: 1 });
+    ws.receive("{not json");
+
+    await expect(pending).rejects.toMatchObject({
+      name: "GatewayRpcError",
+      code: "INVALID_GATEWAY_RESPONSE",
+    });
+    expect(connection.pending.size).toBe(0);
+    expect(ws.closeCalls).toBe(1);
+  });
+
   test("rejects pending requests when the connection closes", async () => {
     const ws = new FakeWebSocket("ws://gateway.local");
     const connection = new SmithersGatewayConnection(ws as unknown as WebSocket);
@@ -308,6 +336,49 @@ describe("SmithersGatewayClient WebSocket helpers", () => {
     const connection = await pending;
     expect(connection).toBeInstanceOf(SmithersGatewayConnection);
     connection.close();
+  });
+
+  test("rejects connect when the socket closes before opening", async () => {
+    const WebSocket = fakeWebSocketCtor();
+    const client = new SmithersGatewayClient({ WebSocket });
+
+    const pending = client.connect();
+    const ws = FakeWebSocket.instances[0];
+    ws.close();
+
+    await expect(pending).rejects.toThrow("Gateway WebSocket closed before open.");
+  });
+
+  test("closes the socket when connect is aborted during the handshake", async () => {
+    const WebSocket = fakeWebSocketCtor();
+    const controller = new AbortController();
+    const client = new SmithersGatewayClient({ WebSocket });
+
+    const pending = client.connect({ signal: controller.signal });
+    const ws = FakeWebSocket.instances[0];
+    ws.open();
+    await waitForSent(ws, 1);
+    controller.abort();
+
+    await expect(pending).rejects.toThrow("Gateway WebSocket handshake aborted.");
+    expect(ws.closeCalls).toBe(1);
+  });
+
+  test("rejects connect when a malformed frame arrives during the handshake", async () => {
+    const WebSocket = fakeWebSocketCtor();
+    const client = new SmithersGatewayClient({ WebSocket });
+
+    const pending = client.connect();
+    const ws = FakeWebSocket.instances[0];
+    ws.open();
+    await waitForSent(ws, 1);
+    ws.receive("{not json");
+
+    await expect(pending).rejects.toMatchObject({
+      name: "GatewayRpcError",
+      code: "INVALID_GATEWAY_RESPONSE",
+    });
+    expect(ws.closeCalls).toBe(1);
   });
 
   test("closes the socket when the connect handshake is rejected", async () => {
