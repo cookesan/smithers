@@ -59,6 +59,20 @@ Rotate token grants regularly and revoke grants when a user, CI job, or integrat
 
 For multi-tenant deployments, store tenant-level orgs, projects, teams, usage, secret references, and audit events with `ControlPlaneStore` from `smithers-orchestrator/control-plane`. Keep identity-provider assertions and billing-provider webhooks outside SQLite, then write normalized grants and audit events into the control-plane tables.
 
+When a deployment uses `ControlPlaneStore`, pass it to the Gateway as an audit sink so auth outcomes and mutating Gateway operations are recorded in the same org/project audit export:
+
+```ts
+const gateway = new Gateway({
+  auth,
+  production: true,
+  controlPlane: {
+    store,
+    orgId: "org_acme",
+    projectId: "project_backend",
+  },
+});
+```
+
 ## Execution Boundary
 
 Sandbox tasks isolate the Smithers control plane from bundle collection and diff application:

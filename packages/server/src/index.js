@@ -40,6 +40,7 @@ export * from "./gatewayRoutes/streamDevTools.js";
 // Type-only stubs reachable via `./*` that are NOT already transitively
 // re-exported through the JS modules above.
 export * from "./ServerOptions.js";
+export * from "./GatewayControlPlaneAuditConfig.js";
 export * from "./GatewayProductionPolicy.js";
 export * from "./GatewayReadinessReport.js";
 

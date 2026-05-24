@@ -6,7 +6,6 @@
 /** @typedef {import("./GatewayUiConfig.js").GatewayUiConfig} GatewayUiConfig */
 /** @typedef {import("./HelloResponse.js").HelloResponse} HelloResponse */
 // @smithers-type-exports-end
-
 import { createServer } from "node:http";
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { resolve } from "node:path";
@@ -45,6 +44,7 @@ import { authorizeGatewayUiRequest } from "./gatewayUi/auth.js";
 import { bundleGatewayUiEntry } from "./gatewayUi/bundle.js";
 import { DEFAULT_OPERATOR_UI_ENTRY } from "./gatewayUi/defaultOperatorUi.js";
 import { assertResolvedGatewayProductionReady } from "./gatewayReadiness.js";
+import { recordGatewayControlPlaneAuthEvent, recordGatewayControlPlaneRpcAuditEvent, recordGatewayControlPlaneRunStartEvent, recordGatewayControlPlaneWebhookSignalEvent, resolveGatewayControlPlaneAuditConfig } from "./gatewayControlPlaneAudit.js";
 /** @typedef {import("./GatewayWebhookRunConfig.js").GatewayWebhookRunConfig} GatewayWebhookRunConfig */
 /** @typedef {import("./GatewayWebhookSignalConfig.js").GatewayWebhookSignalConfig} GatewayWebhookSignalConfig */
 /** @typedef {import("./ConnectRequest.js").ConnectRequest} ConnectRequest */
@@ -156,7 +156,6 @@ function escapeHtml(value) {
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;");
 }
-
 /**
  * @param {unknown} value
  * @returns {string}
@@ -178,7 +177,6 @@ function normalizeUiMountPath(rawPath, fallbackPath) {
     }
     return withoutTrailing;
 }
-
 /**
  * @param {string} mountPath
  * @param {string} suffix
@@ -190,7 +188,6 @@ function joinUiPath(mountPath, suffix) {
     }
     return `${mountPath}/${suffix.replace(/^\/+/, "")}`;
 }
-
 /**
  * @param {GatewayUiConfig | undefined} ui
  * @param {string} fallbackPath
@@ -1276,6 +1273,7 @@ export class Gateway {
             ? DEFAULT_REQUEST_TIMEOUT
             : Math.floor(assertPositiveFiniteInteger("requestTimeout", Number(options.requestTimeout)));
         this.auth = options.auth;
+        this.controlPlane = resolveGatewayControlPlaneAuditConfig(options.controlPlane);
         assertResolvedGatewayProductionReady(options, { auth: this.auth, maxBodyBytes: this.maxBodyBytes, maxPayload: this.maxPayload, maxConnections: this.maxConnections, headersTimeout: this.headersTimeout, requestTimeout: this.requestTimeout });
         this.ui = resolveGatewayUiConfig(options.ui, "/");
         this.operatorUi = resolveDefaultOperatorUiConfig(options.operatorUi);
@@ -1805,6 +1803,7 @@ export class Gateway {
             }),
             logEffect.pipe(Effect.annotateLogs(annotations), Effect.withLogSpan("gateway:auth")),
         ], { discard: true }));
+        recordGatewayControlPlaneAuthEvent(this.controlPlane, transport, outcome, context, details, this.authModeLabel());
     }
     /**
    * @param {GatewayRequestContext} context
@@ -1860,9 +1859,8 @@ export class Gateway {
             }
             return result;
         }).pipe(Effect.annotateLogs(gatewayRpcAnnotations(context, frame)), Effect.withLogSpan(`gateway:rpc:${frame.method}`)));
-        if (result._tag === "failure") {
-            throw result.error;
-        }
+        if (result._tag === "failure") throw result.error;
+        if (result.response.ok) recordGatewayControlPlaneRpcAuditEvent(this.controlPlane, context, frame, result.response);
         return result.response;
     }
     /**
@@ -2092,6 +2090,7 @@ export class Gateway {
                     correlationId,
                     receivedBy: triggeredBy,
                 }));
+                recordGatewayControlPlaneWebhookSignalEvent(this.controlPlane, { workflowKey, runId, triggeredBy, signal });
                 delivered.push({
                     runId,
                     seq: signal.seq,
@@ -2417,6 +2416,7 @@ export class Gateway {
                     : {}),
             }), Effect.withLogSpan("gateway:run")),
         ], { discard: true }));
+        recordGatewayControlPlaneRunStartEvent(this.controlPlane, { workflowKey, runId, auth, resume: options?.resume });
         if (auth.subscribeConnection) {
             if (!auth.subscribeConnection.subscribedRuns) {
                 auth.subscribeConnection.subscribedRuns = new Set();

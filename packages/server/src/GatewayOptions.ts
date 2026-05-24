@@ -1,4 +1,5 @@
 import type { GatewayAuthConfig } from "./GatewayAuthConfig.js";
+import type { GatewayControlPlaneAuditConfig } from "./GatewayControlPlaneAuditConfig.js";
 import type { GatewayDefaults } from "./GatewayDefaults.js";
 import type { GatewayOperatorUiConfig } from "./GatewayOperatorUiConfig.js";
 import type { GatewayProductionPolicy } from "./GatewayProductionPolicy.js";
@@ -16,6 +17,11 @@ export type GatewayOptions = {
    */
   operatorUi?: GatewayOperatorUiConfig | false;
   defaults?: GatewayDefaults;
+  /**
+   * Optional audit sink for multi-tenant deployments using ControlPlaneStore.
+   * Gateway records normalized auth and mutation events without token values.
+   */
+  controlPlane?: GatewayControlPlaneAuditConfig;
   maxBodyBytes?: number;
   maxPayload?: number;
   maxConnections?: number;

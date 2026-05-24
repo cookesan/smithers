@@ -115,6 +115,25 @@ type GatewayAuthConfig$1 = {
     defaultScopes?: string[];
 };
 
+type GatewayControlPlaneAuditStore = {
+    recordAuditEvent(input: {
+        orgId: string;
+        projectId?: string | null;
+        actorId?: string | null;
+        action: string;
+        targetType: string;
+        targetId?: string | null;
+        occurredAtMs?: number;
+        metadata?: Record<string, unknown>;
+    }): unknown;
+};
+type GatewayControlPlaneAuditConfig = {
+    store: GatewayControlPlaneAuditStore;
+    orgId: string;
+    projectId?: string | null;
+    metadata?: Record<string, unknown>;
+};
+
 type GatewayDefaults$1 = {
     cliAgentTools?: "all" | "explicit-only";
 };
@@ -202,6 +221,11 @@ type GatewayOptions$1 = {
      */
     operatorUi?: GatewayOperatorUiConfig$1 | false;
     defaults?: GatewayDefaults$1;
+    /**
+     * Optional audit sink for multi-tenant deployments using ControlPlaneStore.
+     * Gateway records normalized auth and mutation events without token values.
+     */
+    controlPlane?: GatewayControlPlaneAuditConfig;
     maxBodyBytes?: number;
     maxPayload?: number;
     maxConnections?: number;
@@ -347,6 +371,7 @@ declare class Gateway {
     schedulerTimer: null;
     stateVersion: number;
     startedAtMs: number;
+    controlPlane: GatewayControlPlaneAuditConfig | null;
     /**
    * @returns {GatewayUiMount[]}
    */
@@ -1275,4 +1300,4 @@ type RunRow = _smithers_orchestrator_db_adapter_RunRow.RunRow;
 type ServerResponse = node_http.ServerResponse;
 type ServerOptions = ServerOptions$1;
 
-export { type AttemptRow, type ConnectRequest, type ConnectionState, DEFAULT_GATEWAY_PRODUCTION_POLICY, DEVTOOLS_BACKPRESSURE_LIMIT, DEVTOOLS_EMPTY_ROOT_ID, DEVTOOLS_MAX_FRAME_NO, DEVTOOLS_POLL_INTERVAL_MS, DEVTOOLS_REBASELINE_INTERVAL, DEVTOOLS_RUN_ID_PATTERN, DEVTOOLS_TREE_MAX_DEPTH, type DevToolsEvent, type DevToolsNode, type DevToolsNodeType, DevToolsRouteError, type DiffSummary, type EventFrame, GATEWAY_FRAME_ID_MAX_LENGTH, GATEWAY_METHOD_NAME_MAX_LENGTH, GATEWAY_RPC_INPUT_MAX_BYTES, GATEWAY_RPC_INPUT_MAX_DEPTH, GATEWAY_RPC_MAX_ARRAY_LENGTH, GATEWAY_RPC_MAX_DEPTH, GATEWAY_RPC_MAX_PAYLOAD_BYTES, GATEWAY_RPC_MAX_STRING_LENGTH, Gateway, type GatewayAuthConfig, type GatewayDefaults, type GatewayMetricLabels, type GatewayOperatorUiConfig, type GatewayOptions, type GatewayProductionPolicy, type GatewayReadinessCheck, type GatewayReadinessReport, type GatewayReadinessSeverity, type GatewayReadinessStatus, type GatewayRegisterOptions, type GatewayRequestContext, type GatewayTokenGrant, type GatewayTransport, type GatewayUiConfig, type GatewayUiMount, type GatewayWebhookConfig, type GatewayWebhookRunConfig, type GatewayWebhookSignalConfig, type GetNodeDiffRouteResult, type HelloResponse, ITERATION_MAX, type IncomingMessage, type JumpResult, NODE_ID_PATTERN, NODE_OUTPUT_MAX_BYTES, NODE_OUTPUT_WARN_BYTES, type NodeOutputErrorCode, type NodeOutputResponse, NodeOutputRouteError, RUN_ID_PATTERN, type RegisteredWorkflow, type RequestFrame, type ResolvedGatewayUiConfig, type ResolvedRun, type ResponseFrame, type RunRow, type RunStartAuthContext, type ServeOptions, type ServerOptions, type ServerResponse, type SmithersWorkflow, assertGatewayInputDepthWithinBounds, assertGatewayProductionReady, assertResolvedGatewayProductionReady, createServeApp, emptyDevToolsRoot, getDevToolsSnapshotRoute, getGatewayInputDepth, getGatewayReadinessReport, getNodeDiffRoute, getNodeOutputRoute, jumpToFrameRoute, normalizeGatewayProductionPolicy, parseGatewayRequestFrame, parseXmlToDevToolsRoot, runFork, runPromise, runSync, snapshotFromFrameRow, startServer, startServerEffect, statusForRpcError, streamDevToolsRoute, summarizeBundle, validateFrameNoInput, validateFromSeqInput, validateGatewayMethodName, validateRequestedFrameNo, validateRunId };
+export { type AttemptRow, type ConnectRequest, type ConnectionState, DEFAULT_GATEWAY_PRODUCTION_POLICY, DEVTOOLS_BACKPRESSURE_LIMIT, DEVTOOLS_EMPTY_ROOT_ID, DEVTOOLS_MAX_FRAME_NO, DEVTOOLS_POLL_INTERVAL_MS, DEVTOOLS_REBASELINE_INTERVAL, DEVTOOLS_RUN_ID_PATTERN, DEVTOOLS_TREE_MAX_DEPTH, type DevToolsEvent, type DevToolsNode, type DevToolsNodeType, DevToolsRouteError, type DiffSummary, type EventFrame, GATEWAY_FRAME_ID_MAX_LENGTH, GATEWAY_METHOD_NAME_MAX_LENGTH, GATEWAY_RPC_INPUT_MAX_BYTES, GATEWAY_RPC_INPUT_MAX_DEPTH, GATEWAY_RPC_MAX_ARRAY_LENGTH, GATEWAY_RPC_MAX_DEPTH, GATEWAY_RPC_MAX_PAYLOAD_BYTES, GATEWAY_RPC_MAX_STRING_LENGTH, Gateway, type GatewayAuthConfig, type GatewayControlPlaneAuditConfig, type GatewayControlPlaneAuditStore, type GatewayDefaults, type GatewayMetricLabels, type GatewayOperatorUiConfig, type GatewayOptions, type GatewayProductionPolicy, type GatewayReadinessCheck, type GatewayReadinessReport, type GatewayReadinessSeverity, type GatewayReadinessStatus, type GatewayRegisterOptions, type GatewayRequestContext, type GatewayTokenGrant, type GatewayTransport, type GatewayUiConfig, type GatewayUiMount, type GatewayWebhookConfig, type GatewayWebhookRunConfig, type GatewayWebhookSignalConfig, type GetNodeDiffRouteResult, type HelloResponse, ITERATION_MAX, type IncomingMessage, type JumpResult, NODE_ID_PATTERN, NODE_OUTPUT_MAX_BYTES, NODE_OUTPUT_WARN_BYTES, type NodeOutputErrorCode, type NodeOutputResponse, NodeOutputRouteError, RUN_ID_PATTERN, type RegisteredWorkflow, type RequestFrame, type ResolvedGatewayUiConfig, type ResolvedRun, type ResponseFrame, type RunRow, type RunStartAuthContext, type ServeOptions, type ServerOptions, type ServerResponse, type SmithersWorkflow, assertGatewayInputDepthWithinBounds, assertGatewayProductionReady, assertResolvedGatewayProductionReady, createServeApp, emptyDevToolsRoot, getDevToolsSnapshotRoute, getGatewayInputDepth, getGatewayReadinessReport, getNodeDiffRoute, getNodeOutputRoute, jumpToFrameRoute, normalizeGatewayProductionPolicy, parseGatewayRequestFrame, parseXmlToDevToolsRoot, runFork, runPromise, runSync, snapshotFromFrameRow, startServer, startServerEffect, statusForRpcError, streamDevToolsRoute, summarizeBundle, validateFrameNoInput, validateFromSeqInput, validateGatewayMethodName, validateRequestedFrameNo, validateRunId };
