@@ -4,7 +4,7 @@ import { findFirstPositionalIndex, parseMcpSurfaceArgv, rewriteBareResumeFlagArg
 import { CLI_JSON_ARGUMENT_MAX_BYTES, parseJsonArgument, parseJsonInput } from "./json-args.js";
 import { resolve, dirname, basename } from "node:path";
 import { pathToFileURL } from "node:url";
-import { readFileSync, existsSync, openSync, statSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, existsSync, openSync, statSync } from "node:fs";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Effect, Fiber } from "effect";
 import { Cli, Mcp as IncurMcp, z } from "incur";
@@ -60,6 +60,7 @@ import { formatCliAgentCapabilityDoctorReport, getCliAgentCapabilityDoctorReport
 import { parseDurationMs, supervisorLoopEffect, } from "./supervisor.js";
 import { WATCH_MIN_INTERVAL_MS, runWatchLoop, watchIntervalSecondsToMs, } from "./watch.js";
 import { createSemanticMcpServer } from "./mcp/semantic-server.js";
+import { parseTokenScopes, readSmithersTokenStore, smithersTokenStorePath, writeSmithersTokenStore } from "./token-store.js";
 import pc from "picocolors";
 import crypto from "node:crypto";
 import React from "react";
@@ -117,39 +118,6 @@ function readPackageVersion() {
     catch {
         return "unknown";
     }
-}
-function smithersTokenStorePath() {
-    return process.env.SMITHERS_TOKEN_STORE ?? resolve(process.env.HOME ?? process.cwd(), ".smithers", "tokens.json");
-}
-function readSmithersTokenStore() {
-    const path = smithersTokenStorePath();
-    if (!existsSync(path)) {
-        return { tokens: {} };
-    }
-    try {
-        const parsed = JSON.parse(readFileSync(path, "utf8"));
-        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-            return { tokens: {} };
-        }
-        const tokens = parsed.tokens && typeof parsed.tokens === "object" && !Array.isArray(parsed.tokens)
-            ? parsed.tokens
-            : {};
-        return { tokens };
-    }
-    catch {
-        return { tokens: {} };
-    }
-}
-function writeSmithersTokenStore(store) {
-    const path = smithersTokenStorePath();
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, `${JSON.stringify(store, null, 2)}\n`, { mode: 0o600 });
-}
-function parseTokenScopes(raw) {
-    return raw
-        .split(/[,\s]+/)
-        .map((scope) => scope.trim())
-        .filter(Boolean);
 }
 const CLI_ARGUMENT_MAX_LENGTH = 4096;
 const CLI_IDENTIFIER_MAX_LENGTH = 256;
