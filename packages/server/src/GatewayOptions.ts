@@ -1,6 +1,7 @@
 import type { GatewayAuthConfig } from "./GatewayAuthConfig.js";
 import type { GatewayDefaults } from "./GatewayDefaults.js";
 import type { GatewayOperatorUiConfig } from "./GatewayOperatorUiConfig.js";
+import type { GatewayProductionPolicy } from "./GatewayProductionPolicy.js";
 import type { GatewayUiConfig } from "./GatewayUiConfig.js";
 
 export type GatewayOptions = {
@@ -18,6 +19,11 @@ export type GatewayOptions = {
   maxBodyBytes?: number;
   maxPayload?: number;
   maxConnections?: number;
+  /**
+   * Enables opt-in production readiness enforcement for Gateway auth, scope,
+   * token, proxy, and bound settings.
+   */
+  production?: boolean | GatewayProductionPolicy;
   /**
    * Per-run replay window for Gateway run event streams.
    * @default 10000

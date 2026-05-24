@@ -135,6 +135,39 @@ type GatewayOperatorUiConfig$1 = {
     props?: Record<string, unknown>;
 };
 
+type GatewayProductionPolicy = {
+    /**
+     * Enable production readiness enforcement. Passing `production: true` to
+     * GatewayOptions enables the default policy.
+     */
+    enabled?: boolean;
+    /**
+     * Allow a Gateway with no auth config. This should be reserved for private
+     * development networks.
+     */
+    allowAnonymous?: boolean;
+    /** Allow grants or defaults that include the wildcard `*` scope. */
+    allowWildcardScopes?: boolean;
+    /** Allow legacy broad scopes such as `admin` and `execute`. */
+    allowLegacyScopes?: boolean;
+    /** Require static token grants to have an expiry timestamp. */
+    requireTokenExpiry?: boolean;
+    /** Require static token grants to carry stable user and token identifiers. */
+    requireTokenIdentity?: boolean;
+    /** Require trusted-proxy mode to pin allowed browser origins. */
+    requireTrustedProxyOrigins?: boolean;
+    /** Minimum HMAC secret size for JWT auth, measured in UTF-8 bytes. */
+    minJwtSecretBytes?: number;
+    /** Maximum accepted static token lifetime in milliseconds. */
+    maxTokenTtlMs?: number;
+    /** Maximum accepted HTTP request body size in bytes. */
+    maxBodyBytes?: number;
+    /** Maximum accepted WebSocket RPC payload size in bytes. */
+    maxPayloadBytes?: number;
+    /** Maximum accepted concurrent WebSocket connections. */
+    maxConnections?: number;
+};
+
 type GatewayUiConfig$1 = true | {
     /**
      * Browser entry module for the React app. Smithers bundles this with Bun and
@@ -172,6 +205,11 @@ type GatewayOptions$1 = {
     maxBodyBytes?: number;
     maxPayload?: number;
     maxConnections?: number;
+    /**
+     * Enables opt-in production readiness enforcement for Gateway auth, scope,
+     * token, proxy, and bound settings.
+     */
+    production?: boolean | GatewayProductionPolicy;
     /**
      * Per-run replay window for Gateway run event streams.
      * @default 10000
@@ -810,6 +848,48 @@ type GatewayUiMount = {
     config: ResolvedGatewayUiConfig;
 };
 
+type GatewayReadinessSeverity = "info" | "warning" | "error";
+type GatewayReadinessStatus = "pass" | "warn" | "fail";
+type GatewayReadinessCheck = {
+    id: string;
+    severity: GatewayReadinessSeverity;
+    message: string;
+    details?: Record<string, unknown>;
+};
+type GatewayReadinessReport = {
+    status: GatewayReadinessStatus;
+    production: boolean;
+    checkedAtMs: number;
+    checks: GatewayReadinessCheck[];
+};
+
+/**
+ * @param {boolean | import("./GatewayProductionPolicy.js").GatewayProductionPolicy | undefined} input
+ * @returns {Required<import("./GatewayProductionPolicy.js").GatewayProductionPolicy>}
+ */
+declare function normalizeGatewayProductionPolicy(input: boolean | GatewayProductionPolicy | undefined): Required<GatewayProductionPolicy>;
+/**
+ * Build a structured production readiness report for Gateway options.
+ *
+ * @param {import("./GatewayOptions.js").GatewayOptions} [options]
+ * @param {boolean | import("./GatewayProductionPolicy.js").GatewayProductionPolicy} [production]
+ * @returns {import("./GatewayReadinessReport.js").GatewayReadinessReport}
+ */
+declare function getGatewayReadinessReport(options?: GatewayOptions$1, production?: boolean | GatewayProductionPolicy): GatewayReadinessReport;
+/**
+ * @param {import("./GatewayOptions.js").GatewayOptions} options
+ * @param {boolean | import("./GatewayProductionPolicy.js").GatewayProductionPolicy} [production]
+ * @returns {import("./GatewayReadinessReport.js").GatewayReadinessReport}
+ */
+declare function assertGatewayProductionReady(options: GatewayOptions$1, production?: boolean | GatewayProductionPolicy): GatewayReadinessReport;
+/**
+ * @param {import("./GatewayOptions.js").GatewayOptions} options
+ * @param {Partial<import("./GatewayOptions.js").GatewayOptions>} resolved
+ */
+declare function assertResolvedGatewayProductionReady(options: GatewayOptions$1, resolved: Partial<GatewayOptions$1>): void;
+/** @type {Required<import("./GatewayProductionPolicy.js").GatewayProductionPolicy>} */
+declare const DEFAULT_GATEWAY_PRODUCTION_POLICY: Required<GatewayProductionPolicy>;
+
 type ServeOptions$1 = {
     workflow: SmithersWorkflow$1<unknown>;
     adapter: SmithersDb$4;
@@ -1195,4 +1275,4 @@ type RunRow = _smithers_orchestrator_db_adapter_RunRow.RunRow;
 type ServerResponse = node_http.ServerResponse;
 type ServerOptions = ServerOptions$1;
 
-export { type AttemptRow, type ConnectRequest, type ConnectionState, DEVTOOLS_BACKPRESSURE_LIMIT, DEVTOOLS_EMPTY_ROOT_ID, DEVTOOLS_MAX_FRAME_NO, DEVTOOLS_POLL_INTERVAL_MS, DEVTOOLS_REBASELINE_INTERVAL, DEVTOOLS_RUN_ID_PATTERN, DEVTOOLS_TREE_MAX_DEPTH, type DevToolsEvent, type DevToolsNode, type DevToolsNodeType, DevToolsRouteError, type DiffSummary, type EventFrame, GATEWAY_FRAME_ID_MAX_LENGTH, GATEWAY_METHOD_NAME_MAX_LENGTH, GATEWAY_RPC_INPUT_MAX_BYTES, GATEWAY_RPC_INPUT_MAX_DEPTH, GATEWAY_RPC_MAX_ARRAY_LENGTH, GATEWAY_RPC_MAX_DEPTH, GATEWAY_RPC_MAX_PAYLOAD_BYTES, GATEWAY_RPC_MAX_STRING_LENGTH, Gateway, type GatewayAuthConfig, type GatewayDefaults, type GatewayMetricLabels, type GatewayOperatorUiConfig, type GatewayOptions, type GatewayRegisterOptions, type GatewayRequestContext, type GatewayTokenGrant, type GatewayTransport, type GatewayUiConfig, type GatewayUiMount, type GatewayWebhookConfig, type GatewayWebhookRunConfig, type GatewayWebhookSignalConfig, type GetNodeDiffRouteResult, type HelloResponse, ITERATION_MAX, type IncomingMessage, type JumpResult, NODE_ID_PATTERN, NODE_OUTPUT_MAX_BYTES, NODE_OUTPUT_WARN_BYTES, type NodeOutputErrorCode, type NodeOutputResponse, NodeOutputRouteError, RUN_ID_PATTERN, type RegisteredWorkflow, type RequestFrame, type ResolvedGatewayUiConfig, type ResolvedRun, type ResponseFrame, type RunRow, type RunStartAuthContext, type ServeOptions, type ServerOptions, type ServerResponse, type SmithersWorkflow, assertGatewayInputDepthWithinBounds, createServeApp, emptyDevToolsRoot, getDevToolsSnapshotRoute, getGatewayInputDepth, getNodeDiffRoute, getNodeOutputRoute, jumpToFrameRoute, parseGatewayRequestFrame, parseXmlToDevToolsRoot, runFork, runPromise, runSync, snapshotFromFrameRow, startServer, startServerEffect, statusForRpcError, streamDevToolsRoute, summarizeBundle, validateFrameNoInput, validateFromSeqInput, validateGatewayMethodName, validateRequestedFrameNo, validateRunId };
+export { type AttemptRow, type ConnectRequest, type ConnectionState, DEFAULT_GATEWAY_PRODUCTION_POLICY, DEVTOOLS_BACKPRESSURE_LIMIT, DEVTOOLS_EMPTY_ROOT_ID, DEVTOOLS_MAX_FRAME_NO, DEVTOOLS_POLL_INTERVAL_MS, DEVTOOLS_REBASELINE_INTERVAL, DEVTOOLS_RUN_ID_PATTERN, DEVTOOLS_TREE_MAX_DEPTH, type DevToolsEvent, type DevToolsNode, type DevToolsNodeType, DevToolsRouteError, type DiffSummary, type EventFrame, GATEWAY_FRAME_ID_MAX_LENGTH, GATEWAY_METHOD_NAME_MAX_LENGTH, GATEWAY_RPC_INPUT_MAX_BYTES, GATEWAY_RPC_INPUT_MAX_DEPTH, GATEWAY_RPC_MAX_ARRAY_LENGTH, GATEWAY_RPC_MAX_DEPTH, GATEWAY_RPC_MAX_PAYLOAD_BYTES, GATEWAY_RPC_MAX_STRING_LENGTH, Gateway, type GatewayAuthConfig, type GatewayDefaults, type GatewayMetricLabels, type GatewayOperatorUiConfig, type GatewayOptions, type GatewayProductionPolicy, type GatewayReadinessCheck, type GatewayReadinessReport, type GatewayReadinessSeverity, type GatewayReadinessStatus, type GatewayRegisterOptions, type GatewayRequestContext, type GatewayTokenGrant, type GatewayTransport, type GatewayUiConfig, type GatewayUiMount, type GatewayWebhookConfig, type GatewayWebhookRunConfig, type GatewayWebhookSignalConfig, type GetNodeDiffRouteResult, type HelloResponse, ITERATION_MAX, type IncomingMessage, type JumpResult, NODE_ID_PATTERN, NODE_OUTPUT_MAX_BYTES, NODE_OUTPUT_WARN_BYTES, type NodeOutputErrorCode, type NodeOutputResponse, NodeOutputRouteError, RUN_ID_PATTERN, type RegisteredWorkflow, type RequestFrame, type ResolvedGatewayUiConfig, type ResolvedRun, type ResponseFrame, type RunRow, type RunStartAuthContext, type ServeOptions, type ServerOptions, type ServerResponse, type SmithersWorkflow, assertGatewayInputDepthWithinBounds, assertGatewayProductionReady, assertResolvedGatewayProductionReady, createServeApp, emptyDevToolsRoot, getDevToolsSnapshotRoute, getGatewayInputDepth, getGatewayReadinessReport, getNodeDiffRoute, getNodeOutputRoute, jumpToFrameRoute, normalizeGatewayProductionPolicy, parseGatewayRequestFrame, parseXmlToDevToolsRoot, runFork, runPromise, runSync, snapshotFromFrameRow, startServer, startServerEffect, statusForRpcError, streamDevToolsRoute, summarizeBundle, validateFrameNoInput, validateFromSeqInput, validateGatewayMethodName, validateRequestedFrameNo, validateRunId };

@@ -44,6 +44,7 @@ import { renderDefaultConsoleClient } from "./gatewayUi/defaultConsole.js";
 import { authorizeGatewayUiRequest } from "./gatewayUi/auth.js";
 import { bundleGatewayUiEntry } from "./gatewayUi/bundle.js";
 import { DEFAULT_OPERATOR_UI_ENTRY } from "./gatewayUi/defaultOperatorUi.js";
+import { assertResolvedGatewayProductionReady } from "./gatewayReadiness.js";
 /** @typedef {import("./GatewayWebhookRunConfig.js").GatewayWebhookRunConfig} GatewayWebhookRunConfig */
 /** @typedef {import("./GatewayWebhookSignalConfig.js").GatewayWebhookSignalConfig} GatewayWebhookSignalConfig */
 /** @typedef {import("./ConnectRequest.js").ConnectRequest} ConnectRequest */
@@ -144,7 +145,6 @@ export const GATEWAY_RPC_INPUT_MAX_BYTES = GATEWAY_RPC_MAX_PAYLOAD_BYTES;
 export const GATEWAY_RPC_INPUT_MAX_DEPTH = GATEWAY_RPC_MAX_DEPTH;
 const GATEWAY_METHOD_NAME_PATTERN = /^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/;
 const GATEWAY_UI_ASSET_PREFIX = "__smithers_ui";
-
 /**
  * @param {string} value
  * @returns {string}
@@ -164,7 +164,6 @@ function escapeHtml(value) {
 function safeJsonScript(value) {
     return JSON.stringify(value).replaceAll("<", "\\u003c");
 }
-
 /**
  * @param {string | undefined} rawPath
  * @param {string} fallbackPath
@@ -1277,6 +1276,7 @@ export class Gateway {
             ? DEFAULT_REQUEST_TIMEOUT
             : Math.floor(assertPositiveFiniteInteger("requestTimeout", Number(options.requestTimeout)));
         this.auth = options.auth;
+        assertResolvedGatewayProductionReady(options, { auth: this.auth, maxBodyBytes: this.maxBodyBytes, maxPayload: this.maxPayload, maxConnections: this.maxConnections, headersTimeout: this.headersTimeout, requestTimeout: this.requestTimeout });
         this.ui = resolveGatewayUiConfig(options.ui, "/");
         this.operatorUi = resolveDefaultOperatorUiConfig(options.operatorUi);
         this.uiApp = createGatewayUiApp({

@@ -26,6 +26,7 @@ import { prometheusContentType, renderPrometheusMetrics, } from "@smithers-orche
 // Re-export the full public surface so the tsup-bundled `src/index.d.ts`
 // covers every module reachable via the `./*` wildcard export.
 export * from "./gateway.js";
+export * from "./gatewayReadiness.js";
 export * from "./serve.js";
 export * from "./smithersRuntime.js";
 export * from "./gatewayRoutes/NODE_OUTPUT_MAX_BYTES.js";
@@ -39,6 +40,8 @@ export * from "./gatewayRoutes/streamDevTools.js";
 // Type-only stubs reachable via `./*` that are NOT already transitively
 // re-exported through the JS modules above.
 export * from "./ServerOptions.js";
+export * from "./GatewayProductionPolicy.js";
+export * from "./GatewayReadinessReport.js";
 
 const runs = new Map();
 const DEFAULT_MAX_BODY_BYTES = 1_048_576;
