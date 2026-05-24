@@ -12,6 +12,7 @@ const DOCS_MEMORY_CONCEPT = resolve(REPO_ROOT, "docs/concepts/memory.mdx");
 const GROUPS_WITH_DOTTED_DOCS = new Set([
     "agents",
     "cron",
+    "gateway",
     "memory",
     "openapi",
     "token",

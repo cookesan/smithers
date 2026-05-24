@@ -60,6 +60,7 @@ import { formatCliAgentCapabilityDoctorReport, getCliAgentCapabilityDoctorReport
 import { parseDurationMs, supervisorLoopEffect, } from "./supervisor.js";
 import { WATCH_MIN_INTERVAL_MS, runWatchLoop, watchIntervalSecondsToMs, } from "./watch.js";
 import { createSemanticMcpServer } from "./mcp/semantic-server.js";
+import { createGatewayCli } from "./gateway-doctor.js";
 import { parseTokenScopes, readSmithersTokenStore, smithersTokenStorePath, writeSmithersTokenStore } from "./token-store.js";
 import pc from "picocolors";
 import crypto from "node:crypto";
@@ -2271,6 +2272,7 @@ const openapiCli = Cli.create({
         }
     },
 });
+
 const tokenCli = Cli.create({
     name: "token",
     description: "Issue and revoke short-lived Gateway bearer tokens.",
@@ -2622,6 +2624,11 @@ function devtoolsUsage(cmd) {
 // CLI
 // ---------------------------------------------------------------------------
 let commandExitOverride;
+const gatewayCli = createGatewayCli({
+    setExitCode(exitCode) {
+        commandExitOverride = exitCode;
+    },
+});
 const cli = Cli.create({
     name: "smithers",
     description: "Durable AI workflow orchestrator. Run, monitor, and manage workflow executions.",
@@ -5195,6 +5202,7 @@ const cli = Cli.create({
     .command(agentsCli)
     .command(memoryCli)
     .command(openapiCli)
+    .command(gatewayCli)
     .command(tokenCli);
 const cliCommands = Cli.toCommands?.get(cli);
 if (!(cliCommands instanceof Map)) {
@@ -5345,6 +5353,10 @@ function argvRequestsJsonMode(argv) {
         return hasJsonFlag(argv, commandIndex + 1);
     }
     if (command === "agents") {
+        const subcommandIndex = findFirstPositionalIndex(argv, commandIndex + 1);
+        return subcommandIndex >= 0 && argv[subcommandIndex] === "doctor" && hasJsonFlag(argv, subcommandIndex + 1);
+    }
+    if (command === "gateway") {
         const subcommandIndex = findFirstPositionalIndex(argv, commandIndex + 1);
         return subcommandIndex >= 0 && argv[subcommandIndex] === "doctor" && hasJsonFlag(argv, subcommandIndex + 1);
     }

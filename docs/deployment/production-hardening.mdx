@@ -19,6 +19,17 @@ pnpm test
 
 The default CI workflow runs the same test gate on pull requests and pushes to `main`.
 
+## Gateway Readiness
+
+Use `smithers gateway doctor` to validate a Gateway options file before exposing the Gateway outside a local development network:
+
+```bash
+smithers gateway doctor --config gateway.production.json
+smithers gateway doctor --config gateway.production.json --json
+```
+
+The doctor uses the same readiness contract as `Gateway({ production: true })`, including auth mode, static token, JWT, trusted-proxy, scope, body-size, payload-size, and connection-limit checks.
+
 ## Persistence
 
 Use one SQLite database file per deployment and place it on durable storage. The internal tables are created and migrated idempotently on startup.

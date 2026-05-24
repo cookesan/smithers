@@ -147,6 +147,21 @@ describe("CLI --json stdout contract", () => {
         const { sqlite, adapter } = openRepoDb(repo);
         try {
             await seedJsonContractFixture(repo, adapter, sqlite);
+            repo.write("gateway.production.json", JSON.stringify({
+                auth: {
+                    mode: "token",
+                    tokens: {
+                        "token-secret": {
+                            role: "operator",
+                            scopes: ["run:read"],
+                            userId: "user:json",
+                            tokenId: "tok_json",
+                            issuedAtMs: Date.now(),
+                            expiresAtMs: Date.now() + 60_000,
+                        },
+                    },
+                },
+            }, null, 2) + "\n");
 
             const cases = [
                 { label: "why", args: ["why", "json-run", "--json"] },
@@ -157,6 +172,7 @@ describe("CLI --json stdout contract", () => {
                 { label: "output", args: ["output", "json-run", "node-a", "--json"] },
                 { label: "diff", args: ["diff", "json-run", "node-a", "--json"] },
                 { label: "agents doctor", args: ["agents", "doctor", "--json"] },
+                { label: "gateway doctor", args: ["gateway", "doctor", "--config", "gateway.production.json", "--json"] },
             ];
 
             for (const entry of cases) {
